@@ -1,0 +1,155 @@
+name: email-triage-env
+version: "1.0.0"
+description: >
+  A real-world email triage environment where AI agents must read, prioritize,
+  categorize, and decide response actions for a corporate inbox. Models a task
+  that knowledge workers perform daily, with graded difficulty across 3 tasks.
+
+domain: enterprise-productivity
+entry_point: app.py
+base_url: "http://localhost:7860"
+
+tags:
+  - email
+  - triage
+  - nlp
+  - decision-making
+  - real-world
+  - openenv
+
+author: email-triage-team
+license: MIT
+
+tasks:
+  - id: easy_triage
+    description: >
+      Triage 5 emails with clear, unambiguous signals: obvious spam, an urgent
+      billing suspension notice, a general product inquiry, and a production outage.
+    difficulty: easy
+    num_emails: 5
+    max_steps: 30
+    reward_range: [0.0, 1.0]
+    reset_endpoint: "POST /reset?task_id=easy_triage"
+    step_endpoint:  "POST /step?task_id=easy_triage"
+    state_endpoint: "GET  /state?task_id=easy_triage"
+
+  - id: medium_triage
+    description: >
+      Triage 6 emails requiring body comprehension: escalating customer refund complaint,
+      legal cease-and-desist, HR scheduling, sales partnership inquiry, facilities
+      reminder, and a critical database corruption incident.
+    difficulty: medium
+    num_emails: 6
+    max_steps: 30
+    reward_range: [0.0, 1.0]
+    reset_endpoint: "POST /reset?task_id=medium_triage"
+    step_endpoint:  "POST /step?task_id=medium_triage"
+    state_endpoint: "GET  /state?task_id=medium_triage"
+
+  - id: hard_triage
+    description: >
+      Triage 8 emails with deliberate traps: emails that look routine but hide urgent
+      legal/SLA issues, emails that look urgent but need calm follow-up, and emails
+      where tone misleads. Escalation decisions are heavily weighted.
+    difficulty: hard
+    num_emails: 8
+    max_steps: 30
+    reward_range: [0.0, 1.0]
+    reset_endpoint: "POST /reset?task_id=hard_triage"
+    step_endpoint:  "POST /step?task_id=hard_triage"
+    state_endpoint: "GET  /state?task_id=hard_triage"
+
+observation_space:
+  type: object
+  description: Current inbox state visible to the agent
+  fields:
+    inbox:
+      type: array
+      items: EmailMessage
+      description: List of unprocessed emails remaining in the inbox
+    current_email:
+      type: EmailMessage
+      nullable: true
+      description: The next email to process (first pending in inbox)
+    step_number:
+      type: integer
+      description: Current step count within the episode
+    emails_processed:
+      type: integer
+      description: Number of emails triaged so far this episode
+    emails_remaining:
+      type: integer
+      description: Number of emails still pending triage
+    task_description:
+      type: string
+      description: Natural language description of the current task
+    context:
+      type: object
+      description: Additional task metadata (task_id, total_emails)
+
+action_space:
+  type: object
+  description: Triage decision for a single email
+  fields:
+    email_id:
+      type: string
+      required: true
+      description: ID of the email being triaged (must match a pending email)
+    priority:
+      type: string
+      required: true
+      enum: [urgent, high, normal, low]
+      description: >
+        urgent=within hours, high=today, normal=this week, low=no urgency
+    category:
+      type: string
+      required: true
+      enum: [billing, technical_support, sales, hr, legal, spam, internal, customer_complaint, general_inquiry]
+    response_action:
+      type: string
+      required: true
+      enum: [reply_now, delegate, archive, escalate, delete, schedule_followup]
+    summary:
+      type: string
+      required: true
+      description: One-sentence summary of the email (10–200 characters)
+    reasoning:
+      type: string
+      required: false
+      description: Optional explanation of the triage decision
+
+reward:
+  type: float
+  range: [0.0, 1.0]
+  description: >
+    Per-step reward computed as a weighted sum of four components:
+    priority accuracy (partial credit for adjacent levels),
+    category accuracy (partial credit for semantically related categories),
+    action correctness (partial credit for related actions),
+    and summary quality (length + keyword overlap heuristic).
+    Hard penalties applied for catastrophic errors: replying to spam (-0.3),
+    deleting an urgent email (-0.5). Episode score is mean reward across all emails.
+  components:
+    - name: priority_score
+      weight_easy: 0.35
+      weight_medium: 0.30
+      weight_hard: 0.25
+    - name: category_score
+      weight_easy: 0.30
+      weight_medium: 0.30
+      weight_hard: 0.25
+    - name: action_score
+      weight_easy: 0.25
+      weight_medium: 0.30
+      weight_hard: 0.40
+    - name: summary_score
+      weight_easy: 0.10
+      weight_medium: 0.10
+      weight_hard: 0.10
+
+endpoints:
+  health: "GET  /health"
+  tasks:  "GET  /tasks"
+  reset:  "POST /reset?task_id={task_id}"
+  step:   "POST /step?task_id={task_id}"
+  state:  "GET  /state?task_id={task_id}"

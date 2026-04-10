@@ -140,7 +140,7 @@ def grade_action(
     truth = GROUND_TRUTH.get(action.email_id)
     if truth is None:
         return Reward(
-            value=0.0,
+            value=1e-6,
             breakdown={"error": f"Unknown email_id: {action.email_id}"},
         )
 
@@ -160,7 +160,9 @@ def grade_action(
         penalty = 0.5
 
     raw = pw * p_score + cw * c_score + aw * a_score + sw * s_score
-    value = max(0.0, round(raw - penalty, 4))
+    raw_value = max(0.0, round(raw - penalty, 4))
+    # Clamp strictly inside (0, 1) as required by the grading platform
+    value = max(1e-6, min(1.0 - 1e-6, raw_value))
 
     return Reward(
         value=value,

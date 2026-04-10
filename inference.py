@@ -249,6 +249,7 @@ def run_task(task_id: str) -> Dict[str, Any]:
         print(
             f"[END] success={str(success).lower()}"
             f" steps={step_num}"
+            f" score={final_score:.2f}"
             f" rewards={rewards_str}",
             flush=True,
         )

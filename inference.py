@@ -5,8 +5,8 @@ Runs an LLM agent against all 3 tasks and emits structured stdout logs.
 
 STDOUT FORMAT (strict):
   [START] task=<task_name> env=<benchmark> model=<model_name>
-  [STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-  [END] success=<true|false> steps=<n> score=<0.00> rewards=<r1,r2,...,rn>
+  [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+  [END]   success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 
 Mandatory environment variables:
   HF_TOKEN     — HuggingFace / API key  (https://huggingface.co/settings/tokens)
@@ -223,7 +223,7 @@ def run_task(task_id: str) -> Dict[str, Any]:
 
             # [STEP] — emitted immediately after env.step() returns
             print(
-                f"[STEP]  step={step_num}"
+                f"[STEP] step={step_num}"
                 f" action={_action_str(action)}"
                 f" reward={reward.value:.2f}"
                 f" done={str(done).lower()}"
@@ -247,7 +247,7 @@ def run_task(task_id: str) -> Dict[str, Any]:
         # [END] — always emitted, even on exception
         rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else "0.00"
         print(
-            f"[END]   success={str(success).lower()}"
+            f"[END] success={str(success).lower()}"
             f" steps={step_num}"
             f" rewards={rewards_str}",
             flush=True,

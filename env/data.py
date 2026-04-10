@@ -26,16 +26,27 @@ GROUND_TRUTH: Dict[str, Dict[str, str]] = {
     "h002": {"priority": "high",    "category": "customer_complaint", "response_action": "escalate"},
     # h003: invoice dispute — billing but NOT urgent, needs followup not immediate reply
     "h003": {"priority": "normal",  "category": "billing",            "response_action": "schedule_followup"},
-    # h004: vendor follow-up — looks like sales opportunity but it's inbound sales spam
-    "h004": {"priority": "low",     "category": "sales",              "response_action": "archive"},
+    # h004: Looks like a warm customer success story — positive tone, mentions expansion.
+    # Trap: agents classify as sales/reply_now or general_inquiry/reply_now.
+    # Hidden signal: "we've already started using the enterprise features" without an
+    # enterprise contract = unauthorized usage that needs legal/billing review, not a
+    # sales celebration. Correct: high/billing/escalate.
+    "h004": {"priority": "high",    "category": "billing",            "response_action": "escalate"},
     # h005: partner SLA breach — looks like technical_support but is actually a legal/SLA issue requiring escalation
     "h005": {"priority": "urgent",  "category": "technical_support",  "response_action": "escalate"},
     # h006: viral tweet — looks like internal/monitoring but is urgent customer_complaint requiring reply_now
     "h006": {"priority": "urgent",  "category": "customer_complaint", "response_action": "reply_now"},
-    # h007: parental leave — looks like it needs immediate reply but should be delegated to HR
-    "h007": {"priority": "normal",  "category": "hr",                 "response_action": "delegate"},
-    # h008: team lunch — genuinely low/internal/archive, trap for over-eager agents
-    "h008": {"priority": "low",     "category": "internal",           "response_action": "archive"},
+    # h007: Looks like a routine security notification — automated sender, standard subject.
+    # Trap: agents archive it as internal/low. Hidden signal: "third failed sudo attempt
+    # from an unrecognized IP in Belarus" on a production server = active intrusion attempt.
+    # Correct: urgent/technical_support/escalate.
+    "h007": {"priority": "urgent",  "category": "technical_support",  "response_action": "escalate"},
+    # h008: Looks like an angry customer demanding a refund — aggressive tone, threats.
+    # Trap: agents escalate or reply_now. Hidden signal: the "invoice" number doesn't
+    # match any real format, the sender domain is a free email, and the "contract" they
+    # reference has a date in the future. This is a social engineering attempt / fraud.
+    # Correct: low/spam/delete.
+    "h008": {"priority": "low",     "category": "spam",               "response_action": "delete"},
 }
 
 EMAILS: List[Dict[str, Any]] = [
@@ -258,23 +269,28 @@ EMAILS: List[Dict[str, Any]] = [
         "has_attachment": True,
         "thread_length": 2,
     },
-    # h004: Inbound vendor sales follow-up. Trap: agents may classify as sales/delegate
-    # because it mentions a proposal. Correct: low/sales/archive — this is an inbound
-    # vendor trying to sell TO us, not a customer or partner opportunity.
+    # h004: Positive expansion email — warm tone, mentions growth, sounds like a win.
+    # Trap: agents celebrate and reply_now or delegate to sales.
+    # Hidden signal: "already rolled out to our 200-person team" using enterprise SSO
+    # and audit logs — features only on the Enterprise plan they haven't signed.
+    # Correct: high/billing/escalate — unauthorized plan usage needs immediate review.
     {
         "id": "h004",
-        "subject": "Checking in - any updates on our proposal?",
-        "sender": "sales.rep@vendor.com",
+        "subject": "Loving the product — quick question about our rollout",
+        "sender": "ops.manager@growing-startup.com",
         "body": (
             "Hi,\n\n"
-            "Just following up on the proposal we sent over two weeks ago. "
-            "Has your team had a chance to review it? Happy to answer any questions "
-            "or adjust the scope if needed. Let me know if now isn't a good time.\n\n"
-            "Thanks,\nSam"
+            "Just wanted to say the team has been loving the product. We've already "
+            "rolled it out to our 200-person team and the adoption has been fantastic. "
+            "We've been using the SSO integration and the audit log features heavily — "
+            "they've been a game changer for our compliance team.\n\n"
+            "Quick question: we're planning to add another 50 seats next quarter. "
+            "What's the best way to handle that expansion?\n\n"
+            "Thanks,\nJordan"
         ),
         "timestamp": "2024-01-15T14:30:00Z",
         "has_attachment": False,
-        "thread_length": 2,
+        "thread_length": 1,
     },
     # h005: Partner SLA breach. Subject says "API rate limiting" — looks like a tech
     # support ticket. But the body reveals: Business plan SLA violation, partner's own
@@ -314,40 +330,51 @@ EMAILS: List[Dict[str, Any]] = [
         "has_attachment": False,
         "thread_length": 1,
     },
-    # h007: Employee parental leave question. Trap: agents may reply_now because it's
-    # a direct question. Correct: normal/hr/delegate — this should go to HR, not be
-    # answered directly by whoever is triaging the inbox.
+    # h007: Automated security alert — dry, technical, easy to dismiss as routine.
+    # Trap: agents archive as internal/low because it looks like a standard alert.
+    # Hidden signal: 3 failed sudo attempts from Belarus IP on prod-db-01 at 3am
+    # = active brute force on production database. Correct: urgent/technical_support/escalate.
     {
         "id": "h007",
-        "subject": "Parental leave policy question",
-        "sender": "employee.name@company.com",
+        "subject": "Security alert: failed authentication attempts on prod-db-01",
+        "sender": "security-alerts@monitoring.internal",
         "body": (
-            "Hi HR,\n\n"
-            "I'm expecting a baby in April and wanted to understand the parental leave "
-            "policy. Specifically: how much paid leave is available, does it apply to "
-            "both parents, and what's the process for requesting it? I'd also like to "
-            "understand how it interacts with my current project commitments.\n\n"
-            "Thanks"
+            "Automated security notification\n\n"
+            "Host: prod-db-01.internal\n"
+            "Event: 3 consecutive failed sudo authentication attempts\n"
+            "User: root\n"
+            "Source IP: 185.220.101.47 (Tor exit node, geo: Belarus)\n"
+            "Time: 03:14:22 UTC\n"
+            "Previous successful login: 2024-01-14 09:22 UTC (known IP)\n\n"
+            "This is alert #3 of 3 before account lockout threshold.\n"
+            "No action has been taken automatically."
         ),
-        "timestamp": "2024-01-15T10:30:00Z",
+        "timestamp": "2024-01-15T03:15:00Z",
         "has_attachment": False,
         "thread_length": 1,
     },
-    # h008: Casual internal email. Trap: agents may over-classify as normal/reply_now
-    # because it has a question. Correct: low/internal/archive — no business action needed.
+    # h008: Aggressive refund demand — angry tone, legal threats, sounds urgent.
+    # Trap: agents escalate or reply_now because of the threatening language.
+    # Hidden signal: invoice number format invalid, sender is gmail, "contract signed
+    # March 2025" is in the future relative to the email date, amount is suspiciously
+    # round. This is a social engineering / fraud attempt. Correct: low/spam/delete.
     {
         "id": "h008",
-        "subject": "Re: Team lunch next Thursday",
-        "sender": "colleague@company.com",
+        "subject": "URGENT: Unauthorized charge - demand immediate refund of $5,000",
+        "sender": "angry.customer2024@gmail.com",
         "body": (
-            "Hey,\n\n"
-            "Just confirming I'll be at the team lunch on Thursday. "
-            "Should I bring anything? Also, is the new person joining us?\n\n"
-            "Cheers"
+            "I am writing to demand an IMMEDIATE refund of $5,000 that was charged "
+            "to my account without authorization. Invoice REF-000000 dated today "
+            "does not correspond to any service I agreed to.\n\n"
+            "I have a signed contract from March 2025 that explicitly states no "
+            "charges above $500 per month. This charge is a clear breach of contract.\n\n"
+            "If I do not receive a full refund within 24 hours I will be contacting "
+            "my bank, the FTC, and my attorney. I have already drafted the complaint.\n\n"
+            "Do not ignore this email."
         ),
         "timestamp": "2024-01-15T09:00:00Z",
         "has_attachment": False,
-        "thread_length": 2,
+        "thread_length": 1,
     },
 ]
 

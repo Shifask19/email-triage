@@ -193,11 +193,14 @@ TASK_DESCRIPTIONS: Dict[str, str] = {
         "reminder, and a critical database corruption incident blocking a release."
     ),
     "hard_triage": (
-        "Triage 8 emails with subtle signals and deliberate traps. "
-        "Some emails look routine but hide urgent legal or SLA issues. "
-        "Some look urgent but require calm follow-up. "
-        "Tone, sender domain, thread length, and body details all matter. "
-        "Correct escalation decisions are heavily weighted — wrong escalations on "
-        "urgent issues are penalized more than other errors."
+        "Triage 8 emails with deliberate traps designed to fool frontier models. "
+        "Includes: a positive expansion email hiding unauthorized plan usage, "
+        "a routine security alert hiding an active intrusion attempt, "
+        "an aggressive refund demand that is actually fraud, "
+        "a calm customer email hiding imminent churn, "
+        "a contract renewal hiding a legal compliance crisis, "
+        "and a viral PR crisis disguised as an internal monitoring alert. "
+        "Surface tone, sender domain, and subject line all actively mislead. "
+        "Read every detail of the body carefully."
     ),
 }

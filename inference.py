@@ -223,7 +223,7 @@ def run_task(task_id: str) -> Dict[str, Any]:
 
             # [STEP] — emitted immediately after env.step() returns
             print(
-                f"[STEP] step={step_num}"
+                f"[STEP]  step={step_num}"
                 f" action={_action_str(action)}"
                 f" reward={reward.value:.2f}"
                 f" done={str(done).lower()}"
@@ -247,9 +247,8 @@ def run_task(task_id: str) -> Dict[str, Any]:
         # [END] — always emitted, even on exception
         rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else "0.00"
         print(
-            f"[END] success={str(success).lower()}"
+            f"[END]   success={str(success).lower()}"
             f" steps={step_num}"
-            f" score={final_score:.2f}"
             f" rewards={rewards_str}",
             flush=True,
         )

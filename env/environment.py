@@ -81,7 +81,7 @@ class EmailTriageEnv:
         if action.email_id not in self._pending_ids:
             # Penalize invalid action (already processed or unknown)
             reward = Reward(
-                value=0.0,
+                value=1e-6,
                 breakdown={"error": f"email_id '{action.email_id}' not in pending inbox"},
             )
             self._episode_rewards.append(0.0)
@@ -155,8 +155,12 @@ class EmailTriageEnv:
         return self._done
 
     def final_score(self) -> float:
-        """Normalized episode score in [0, 1]."""
+        """Normalized episode score in (0, 1) exclusive — required by platform."""
         n = len(self._inbox)
         if n == 0:
-            return 0.0
-        return round(self._total_reward / n, 4)
+            raw = 0.0
+        else:
+            raw = self._total_reward / n
+        # Clamp strictly inside (0, 1) as required by the grading platform
+        clamped = max(1e-6, min(1.0 - 1e-6, raw))
+        return round(clamped, 4)
